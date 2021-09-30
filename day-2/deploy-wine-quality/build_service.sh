@@ -1,0 +1,1 @@
+docker build . -f ./wine_quality/Dockerfile -t wine_quality

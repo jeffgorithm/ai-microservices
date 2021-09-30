@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: website
+  labels:
+    app: website
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: website
+  template:
+    metadata:
+      labels:
+        app: website
+    spec:
+      containers:
+        - name: website
+          image: jeffgorithm/website
+          env:
+            - name: WINE_QUALITY_HOST
+              value: wine-quality
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wine-quality
+  labels:
+    app: wine-quality
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wine-quality
+  template:
+    metadata:
+      labels:
+        app: wine-quality
+    spec:
+      containers:
+        - name: wine-quality
+          image: jeffgorithm/wine_quality
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wine-quality
+spec:
+  selector:
+    app: wine-quality
+  ports:
+    - protocol: TCP
+      port: 50051
+      targetPort: 50051
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: website
+spec:
+  type: LoadBalancer
+  selector:
+    app: website
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+      nodePort: 30000

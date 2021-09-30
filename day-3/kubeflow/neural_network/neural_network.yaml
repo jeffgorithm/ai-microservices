@@ -1,0 +1,13 @@
+name: Neural Network
+description: Trains a Neural Network classifier
+
+inputs:
+- {name: Data, type: LocalPath, description: 'Path where data is stored.'}
+outputs:
+- {name: Accuracy, type: Float, description: 'Accuracy metric'}
+
+implementation:
+  container:
+    image: arturamorim/kubeflow-neural-network
+    command: [python, neural_network.py, --data, {inputPath: Data},
+      --accuracy, {outputPath: Accuracy}]

@@ -1,0 +1,22 @@
+version: "3.8" 
+services:
+  website:
+    build:
+      context: .
+      dockerfile: website/Dockerfile
+    environment:
+      WINE_QUALITY_HOST: wine_quality
+    image: website
+    networks:
+      - wine_quality_app
+    ports:
+      - 8080:8080
+  wine_quality:
+    build:
+      context: .
+      dockerfile: wine_quality/Dockerfile
+    image: wine_quality
+    networks:
+      - wine_quality_app
+networks:
+  wine_quality_app:

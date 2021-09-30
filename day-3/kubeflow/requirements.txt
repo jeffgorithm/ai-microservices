@@ -1,0 +1,6 @@
+grpcio-tools
+numpy
+pandas
+scikit-learn
+matplotlib
+tensorflow

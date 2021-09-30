@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+message WineQualityRequest{
+    float fixed_acidity = 1;
+    float volatile_acidity = 2;
+    float citric_acidity = 3;
+    float alcohol = 4;
+}
+
+message WineQualityResponse{
+    int32 wine_quality = 1;
+}
+
+service WineQuality{
+    rpc wine_quality(WineQualityRequest) returns (WineQualityResponse);
+}

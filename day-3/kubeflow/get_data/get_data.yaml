@@ -1,0 +1,10 @@
+name: Get data function
+description: Download MNIST dataset from Tensorflow's Keras
+
+outputs:
+- {name: Data, type: LocalPath, description: 'Path where data will be stored.'}
+
+implementation:
+  container:
+    image: arturamorim/kubeflow-get-data
+    command: [python, get_data.py,--data, {outputPath: Data}]

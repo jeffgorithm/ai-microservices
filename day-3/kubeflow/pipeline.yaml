@@ -1,0 +1,169 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.1, pipelines.kubeflow.org/pipeline_compilation_time: '2021-09-16T10:19:09.247100',
+    pipelines.kubeflow.org/pipeline_spec: '{"description": "Applies Neural Network
+      and Convolutional Neural Network for classification problem.", "name": "Pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.1}
+spec:
+  entrypoint: pipeline
+  templates:
+  - name: convolutional-neural-network
+    container:
+      args: []
+      command: [python, convolutional_nn.py, --data, /tmp/inputs/Data/data, --accuracy,
+        /tmp/outputs/Accuracy/data]
+      image: arturamorim/kubeflow-cnn
+    inputs:
+      artifacts:
+      - {name: get-data-function-Data, path: /tmp/inputs/Data/data}
+    outputs:
+      parameters:
+      - name: convolutional-neural-network-Accuracy
+        valueFrom: {path: /tmp/outputs/Accuracy/data}
+      artifacts:
+      - {name: convolutional-neural-network-Accuracy, path: /tmp/outputs/Accuracy/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.1
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Trains
+          a Convolutional Neural Network classifier", "implementation": {"container":
+          {"command": ["python", "convolutional_nn.py", "--data", {"inputPath": "Data"},
+          "--accuracy", {"outputPath": "Accuracy"}], "image": "arturamorim/kubeflow-cnn"}},
+          "inputs": [{"description": "Path where data is stored.", "name": "Data",
+          "type": "LocalPath"}], "name": "Convolutional Neural Network", "outputs":
+          [{"description": "Accuracy metric", "name": "Accuracy", "type": "Float"}]}',
+        pipelines.kubeflow.org/component_ref: '{"digest": "e039d50d3cdd8d3ceae57c2670ea9e3ab3cc568ad77759f9cc414852e63d6f0b",
+          "url": "convolutional_nn/convolutional_nn.yaml"}'}
+  - name: get-data-function
+    container:
+      args: []
+      command: [python, get_data.py, --data, /tmp/outputs/Data/data]
+      image: arturamorim/kubeflow-get-data
+    outputs:
+      artifacts:
+      - {name: get-data-function-Data, path: /tmp/outputs/Data/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.1
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Download
+          MNIST dataset from Tensorflow''s Keras", "implementation": {"container":
+          {"command": ["python", "get_data.py", "--data", {"outputPath": "Data"}],
+          "image": "arturamorim/kubeflow-get-data"}}, "name": "Get data function",
+          "outputs": [{"description": "Path where data will be stored.", "name": "Data",
+          "type": "LocalPath"}]}', pipelines.kubeflow.org/component_ref: '{"digest":
+          "99cf4f9f804920078b5f217c0c60950ca223cb4b58ea54daa392245b1a0d37f2", "url":
+          "get_data/get_data.yaml"}'}
+  - name: neural-network
+    container:
+      args: []
+      command: [python, neural_network.py, --data, /tmp/inputs/Data/data, --accuracy,
+        /tmp/outputs/Accuracy/data]
+      image: arturamorim/kubeflow-neural-network
+    inputs:
+      artifacts:
+      - {name: get-data-function-Data, path: /tmp/inputs/Data/data}
+    outputs:
+      parameters:
+      - name: neural-network-Accuracy
+        valueFrom: {path: /tmp/outputs/Accuracy/data}
+      artifacts:
+      - {name: neural-network-Accuracy, path: /tmp/outputs/Accuracy/data}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.1
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"description": "Trains
+          a Neural Network classifier", "implementation": {"container": {"command":
+          ["python", "neural_network.py", "--data", {"inputPath": "Data"}, "--accuracy",
+          {"outputPath": "Accuracy"}], "image": "arturamorim/kubeflow-neural-network"}},
+          "inputs": [{"description": "Path where data is stored.", "name": "Data",
+          "type": "LocalPath"}], "name": "Neural Network", "outputs": [{"description":
+          "Accuracy metric", "name": "Accuracy", "type": "Float"}]}', pipelines.kubeflow.org/component_ref: '{"digest":
+          "f087856557509284c3e637a6dec08e8c7c25a6dc9c8e9253ccc3427279f02eb0", "url":
+          "neural_network/neural_network.yaml"}'}
+  - name: pipeline
+    dag:
+      tasks:
+      - name: convolutional-neural-network
+        template: convolutional-neural-network
+        dependencies: [get-data-function]
+        arguments:
+          artifacts:
+          - {name: get-data-function-Data, from: '{{tasks.get-data-function.outputs.artifacts.get-data-function-Data}}'}
+      - {name: get-data-function, template: get-data-function}
+      - name: neural-network
+        template: neural-network
+        dependencies: [get-data-function]
+        arguments:
+          artifacts:
+          - {name: get-data-function-Data, from: '{{tasks.get-data-function.outputs.artifacts.get-data-function-Data}}'}
+      - name: show-metrics
+        template: show-metrics
+        dependencies: [convolutional-neural-network, neural-network]
+        arguments:
+          parameters:
+          - {name: convolutional-neural-network-Accuracy, value: '{{tasks.convolutional-neural-network.outputs.parameters.convolutional-neural-network-Accuracy}}'}
+          - {name: neural-network-Accuracy, value: '{{tasks.neural-network.outputs.parameters.neural-network-Accuracy}}'}
+  - name: show-metrics
+    container:
+      args: [--neural-network, '{{inputs.parameters.neural-network-Accuracy}}', --convolutional-nn,
+        '{{inputs.parameters.convolutional-neural-network-Accuracy}}']
+      command:
+      - sh
+      - -ec
+      - |
+        program_path=$(mktemp)
+        printf "%s" "$0" > "$program_path"
+        python3 -u "$program_path" "$@"
+      - |
+        def show_metrics(neural_network, convolutional_nn):
+            # Given the outputs from decision_tree and logistic regression components
+            # the results are shown.
+
+            print(f"Decision tree (accuracy): {neural_network}")
+            print(f"Logistic regression (accuracy): {convolutional_nn}")
+
+        import argparse
+        _parser = argparse.ArgumentParser(prog='Show metrics', description='')
+        _parser.add_argument("--neural-network", dest="neural_network", type=float, required=True, default=argparse.SUPPRESS)
+        _parser.add_argument("--convolutional-nn", dest="convolutional_nn", type=float, required=True, default=argparse.SUPPRESS)
+        _parsed_args = vars(_parser.parse_args())
+
+        _outputs = show_metrics(**_parsed_args)
+      image: python:3.7
+    inputs:
+      parameters:
+      - {name: convolutional-neural-network-Accuracy}
+      - {name: neural-network-Accuracy}
+    metadata:
+      labels:
+        pipelines.kubeflow.org/kfp_sdk_version: 1.8.1
+        pipelines.kubeflow.org/pipeline-sdk-type: kfp
+        pipelines.kubeflow.org/enable_caching: "true"
+      annotations: {pipelines.kubeflow.org/component_spec: '{"implementation": {"container":
+          {"args": ["--neural-network", {"inputValue": "neural_network"}, "--convolutional-nn",
+          {"inputValue": "convolutional_nn"}], "command": ["sh", "-ec", "program_path=$(mktemp)\nprintf
+          \"%s\" \"$0\" > \"$program_path\"\npython3 -u \"$program_path\" \"$@\"\n",
+          "def show_metrics(neural_network, convolutional_nn):\n    # Given the outputs
+          from decision_tree and logistic regression components\n    # the results
+          are shown.\n\n    print(f\"Decision tree (accuracy): {neural_network}\")\n    print(f\"Logistic
+          regression (accuracy): {convolutional_nn}\")\n\nimport argparse\n_parser
+          = argparse.ArgumentParser(prog=''Show metrics'', description='''')\n_parser.add_argument(\"--neural-network\",
+          dest=\"neural_network\", type=float, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--convolutional-nn\",
+          dest=\"convolutional_nn\", type=float, required=True, default=argparse.SUPPRESS)\n_parsed_args
+          = vars(_parser.parse_args())\n\n_outputs = show_metrics(**_parsed_args)\n"],
+          "image": "python:3.7"}}, "inputs": [{"name": "neural_network", "type": "Float"},
+          {"name": "convolutional_nn", "type": "Float"}], "name": "Show metrics"}',
+        pipelines.kubeflow.org/component_ref: '{}', pipelines.kubeflow.org/arguments.parameters: '{"convolutional_nn":
+          "{{inputs.parameters.convolutional-neural-network-Accuracy}}", "neural_network":
+          "{{inputs.parameters.neural-network-Accuracy}}"}'}
+  arguments:
+    parameters: []
+  serviceAccountName: pipeline-runner
